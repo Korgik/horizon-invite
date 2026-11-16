@@ -1080,12 +1080,13 @@ function fitHeroName(){
   var fam=getComputedStyle(heroName).fontFamily,css=getComputedStyle(g);
   cx.font=css.fontStyle+' '+css.fontWeight+' '+base+'px '+fam;
   var txt=heroName.value||heroName.placeholder||'';
-  var want=Math.ceil(cx.measureText(txt).width)+26;
+  var want=Math.ceil(cx.measureText(txt).width)+10;
   var max=Math.max(200,g.clientWidth-24);
   var fs=base;
   if(want>max){fs=Math.max(15,base*max/want);want=max}
   heroName.style.fontSize=(fs<base-0.5?fs.toFixed(2)+'px':'');
-  heroName.style.width=Math.max(200,want)+'px';
+  // с именем поле обнимает текст, пустое — держит «линию для подписи» 200px
+  heroName.style.width=(heroName.value?Math.max(90,want):Math.max(200,want))+'px';
 }
 heroName.addEventListener('input',fitHeroName);
 window.addEventListener('resize',fitHeroName);
