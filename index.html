@@ -1092,7 +1092,7 @@ rsvpForm.addEventListener('submit',function(e){
   setTimeout(function(){
     btn.classList.remove('loading');
     saved={name:name,contact:contact,guests:guests,kids:$('#fKids').checked,stream:$('#fStream').checked,wish:$('#fWish').value.trim(),code:genCode(),ts:Date.now()};
-    saveRsvp();setName(name);renderSuccess();
+    saveRsvp();window.GZ_toast=toast;if(window.sendToTelegram)window.sendToTelegram(saved);setName(name);renderSuccess();
     Sound.chime();burstAt(ticket,150);
     toast('Спасибо, '+name.split(' ')[0]+'! Ждём вас 26 ноября 🧡');
   },700);
@@ -1210,48 +1210,63 @@ document.addEventListener('click',function(e){if(e.target.closest&&e.target.clos
   }
 })();
 
-/* ================== 2) ПРЯМАЯ ОТПРАВКА В TELEGRAM ==================
-   ЗАПОЛНИТЕ ДВА ПОЛЯ НИЖЕ (токен от @BotFather и id чата).          */
-var TG_TOKEN = '9174878893:AAGB4TwL1_oFRZJBB0Yge2hufEHCx9Gn35I';   // пример: 1234567:AAH...
-var TG_CHAT  = '-1004363581120';     // пример: -1001234567890
+/* ================== 2) ОТПРАВКА ЗАЯВКИ В TELEGRAM ====================
+   Токен бота НЕЛЬЗЯ хранить в этом файле: страница на GitHub Pages
+   публична, любой посетитель увидит токен и сможет читать ваш чат и
+   писать от имени бота (Telegram отзывает утёкшие токены автоматически).
+   Поэтому заявка уходит на посредник, а токен хранится у него в секретах.
+   Код поддерживает оба варианта посредника:
+     • Google Apps Script — https://script.google.com/macros/s/…/exec (проще: без карты и CLI)
+     • Cloudflare Worker  — https://имя.субдомен.workers.dev/         (надёжнее: видно ошибку доставки)
+   Пустая строка = отправка выключена.                                  */
+var FORM_ENDPOINT = 'https://gorizont-rsvp.akinfeev-3.workers.dev/';   // впишите адрес одного из вариантов
 
-(function(){
-  'use strict';
-  if (TG_TOKEN.indexOf('PASTE_') === 0) return; // не настроено — тихо пропускаем
+window.sendToTelegram = function sendToTelegram(d){
+  if (!FORM_ENDPOINT || FORM_ENDPOINT.indexOf('http') !== 0) {
+    console.info('FORM_ENDPOINT не задан — отправка в Telegram отключена.');
+    return;
+  }
 
-  var sending = false;
-  document.getElementById('rsvpForm').addEventListener('submit', function(){
-    if (sending) return;
-    sending = true;
-    // ждём, пока основной обработчик запишет валидный ответ в gz_rsvp
-    setTimeout(function(){
-      sending = false;
-      var raw = '';
-      try { raw = localStorage.getItem('gz_rsvp') || ''; } catch(e) {}
-      if (!raw) return; // валидация не прошла — ничего не шлём
-      var d; try { d = JSON.parse(raw); } catch(e) { return; }
-      if (!d || !d.name) return;
+  function notifyFail(){
+    if (window.GZ_toast) {
+      window.GZ_toast('Заявка сохранена, но уведомление не ушло', 'Повторить', function(){
+        sendToTelegram(d);
+      });
+    }
+  }
 
-      var lines = [
-        '\uD83E\uDD0E Новая заявка на юбилей «Горизонта»',
-        'Имя: ' + d.name,
-        'Контакт: ' + (d.contact || '—'),
-        'Гостей: ' + (d.guests || 1) + (d.kids ? ' (с детьми)' : ''),
-        'Трансляция: ' + (d.stream ? 'нужна ссылка' : 'нет'),
-        'Пожелание: ' + (d.wish || '—'),
-        'Билет: ' + (d.code || '')
-      ];
-      if (d.ts && Date.now() - d.ts > 60000) lines[0] = '\u270F\uFE0F Обновлённый ответ: ' + d.name;
-
-      fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: TG_CHAT, text: lines.join('\n') })
-      }).catch(function(err){ console.warn('Telegram send failed:', err); });
-    }, 100);
+  // Cloudflare Worker отвечает с CORS — ответ читаем и видим ошибку доставки.
+  // Google Apps Script CORS-preflight не обрабатывает, поэтому для него шлём
+  // «простой» запрос text/plain + no-cors (ответ браузер скрывает).
+  var toScript = FORM_ENDPOINT.indexOf('script.google.com') !== -1;
+  var payload = JSON.stringify({
+      name: d.name,
+      contact: d.contact || '',
+      guests: d.guests || 1,
+      kids: !!d.kids,
+      stream: !!d.stream,
+      wish: d.wish || '',
+      code: d.code || '',
+      page: location.href
+    });
+  fetch(FORM_ENDPOINT, toScript
+    ? { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payload }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }
+  ).then(function(r){
+    if (toScript) return { ok: true };   // no-cors: ответ недоступен, считаем отправленным
+    return r.text().then(function(txt){
+      var j = {};
+      try { j = JSON.parse(txt); } catch (e) {}
+      if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
+      return j;
+    });
+  }).catch(function(err){
+    console.warn('Заявка не отправлена в Telegram:', err);
+    notifyFail();
   });
-})();
+};
 </script>
 </body>
 </html>
+
 
