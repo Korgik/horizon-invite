@@ -547,7 +547,7 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
         <div class="ribbon"><span class="spark s1">✦</span><span class="spark s2">✦</span><h1>Приглашение<br>на юбилей!</h1></div>
       </div>
       <p class="tagline intro" style="--d:.35s">Вместе к новым возможностям!</p>
-      <p class="greeting intro" style="--d:.45s"><span id="greetWord">Уважаемый(ая)</span> <input id="heroName" type="text" maxlength="30" placeholder="ваше имя" autocomplete="name" aria-label="Ваше имя">!</p>
+      <p class="greeting intro" style="--d:.45s">Уважаемый(ая) <input id="heroName" type="text" maxlength="30" placeholder="ваше имя" autocomplete="name" aria-label="Ваше имя">!</p>
       <p class="hero-lead intro" style="--d:.55s">26 ноября нашему центру исполняется <b>5 лет</b>. Приглашаем вас разделить этот тёплый день с теми, кто был рядом с самого начала.</p>
       <div class="chips intro" style="--d:.65s">
         <span class="chip">📅 26 ноября, четверг</span>
@@ -1092,7 +1092,7 @@ rsvpForm.addEventListener('submit',function(e){
   setTimeout(function(){
     btn.classList.remove('loading');
     saved={name:name,contact:contact,guests:guests,kids:$('#fKids').checked,stream:$('#fStream').checked,wish:$('#fWish').value.trim(),code:genCode(),ts:Date.now()};
-    saveRsvp();setName(name);renderSuccess();sendRsvp(saved);
+    saveRsvp();setName(name);renderSuccess();
     Sound.chime();burstAt(ticket,150);
     toast('Спасибо, '+name.split(' ')[0]+'! Ждём вас 26 ноября 🧡');
   },700);
@@ -1184,47 +1184,74 @@ $$('.faq-item').forEach(function(item){
 /* ---------- SOUND on primary clicks ---------- */
 document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('.btn-primary'))Sound.click()});
 })();
+</script>
 
-/* ---------- ПЕРСОНАЛИЗАЦИЯ И ОТПРАВКА (обработчик в Yandex Cloud) ---------- */
-/* 1. Адрес вашей облачной функции (замените после публикации в Yandex Cloud) */
-var API_URL = 'https://functions.yandexcloud.net/d4e5oopbs51mv3bca10q';
-
-/* 2. Персонализация по ссылке: ?name=Анна+Петрова&g=f  (g=f — «Уважаемая», g=m — «Уважаемый») */
+<script>
+/* ================== 1) ПЕРСОНАЛИЗАЦИЯ ПО ССЫЛКЕ ==================
+   Ссылка вида: https://ваш-адрес/?name=Анна+Петрова&g=f
+   name — имя гостя, g=f — «Уважаемая», g=m — «Уважаемый»            */
 (function(){
-  var p = new URLSearchParams(location.search);
-  var nm = (p.get('name') || '').replace(/\+/g, ' ').trim().slice(0, 60);
-  var g  = (p.get('g') || '').toLowerCase();
-  var gw = document.getElementById('greetWord');
-  if (gw && (g === 'f' || g === 'm')) gw.textContent = (g === 'f') ? 'Уважаемая' : 'Уважаемый';
-  if (nm) {
-    heroName.value = nm; fName.value = nm;
-    store.set('gz_name', nm); setName(nm);
-    ticketHint.textContent = 'Ваше приглашение уже именное ✨';
+  'use strict';
+  var q = new URLSearchParams(location.search);
+  var name = (q.get('name')||'').trim().slice(0,30);
+  var g    = (q.get('g')||'').trim().toLowerCase();
+
+  if (g === 'f' || g === 'm') {
+    var p = document.querySelector('.greeting');
+    if (p && p.firstChild && p.firstChild.nodeType === 3) {
+      p.firstChild.nodeValue = (g === 'f' ? 'Уважаемая ' : 'Уважаемый ');
+    }
+  }
+  if (name) {
+    var heroName = document.getElementById('heroName');
+    var fName    = document.getElementById('fName');
+    if (heroName) { heroName.value = name; heroName.dispatchEvent(new Event('input')); }
+    if (fName && !fName.value.trim()) fName.value = name;
   }
 })();
 
-/* 3. Отправка ответа организаторам через функцию-прокси в Yandex Cloud.
-      Токен бота хранится в переменных окружения функции — в коде страницы его нет. */
-function sendRsvp(d){
-  if (API_URL.indexOf('PASTE_') === 0) return;      /* функция ещё не подключена — тихо пропускаем */
-  try {
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },    /* простой запрос — без CORS-preflight */
-      body: JSON.stringify({
-        name: String(d.name || '').slice(0, 60),
-        contact: String(d.contact || '').slice(0, 60),
-        guests: Number(d.guests) || 1,
-        kids: !!d.kids,
-        stream: !!d.stream,
-        wish: String(d.wish || '').slice(0, 300),
-        page: location.href.slice(0, 200),
-        ts: new Date().toISOString()
-      })
-    }).catch(function(){ /* не блокируем гостя: бронь уже показана, организатору напомним вручную */ });
-  } catch(e) {}
-}
+/* ================== 2) ПРЯМАЯ ОТПРАВКА В TELEGRAM ==================
+   ЗАПОЛНИТЕ ДВА ПОЛЯ НИЖЕ (токен от @BotFather и id чата).          */
+var TG_TOKEN = '9174878893:AAGB4TwL1_oFRZJBB0Yge2hufEHCx9Gn35I';   // пример: 1234567:AAH...
+var TG_CHAT  = '-1004363581120';     // пример: -1001234567890
 
+(function(){
+  'use strict';
+  if (TG_TOKEN.indexOf('PASTE_') === 0) return; // не настроено — тихо пропускаем
+
+  var sending = false;
+  document.getElementById('rsvpForm').addEventListener('submit', function(){
+    if (sending) return;
+    sending = true;
+    // ждём, пока основной обработчик запишет валидный ответ в gz_rsvp
+    setTimeout(function(){
+      sending = false;
+      var raw = '';
+      try { raw = localStorage.getItem('gz_rsvp') || ''; } catch(e) {}
+      if (!raw) return; // валидация не прошла — ничего не шлём
+      var d; try { d = JSON.parse(raw); } catch(e) { return; }
+      if (!d || !d.name) return;
+
+      var lines = [
+        '\uD83E\uDD0E Новая заявка на юбилей «Горизонта»',
+        'Имя: ' + d.name,
+        'Контакт: ' + (d.contact || '—'),
+        'Гостей: ' + (d.guests || 1) + (d.kids ? ' (с детьми)' : ''),
+        'Трансляция: ' + (d.stream ? 'нужна ссылка' : 'нет'),
+        'Пожелание: ' + (d.wish || '—'),
+        'Билет: ' + (d.code || '')
+      ];
+      if (d.ts && Date.now() - d.ts > 60000) lines[0] = '\u270F\uFE0F Обновлённый ответ: ' + d.name;
+
+      fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: TG_CHAT, text: lines.join('\n') })
+      }).catch(function(err){ console.warn('Telegram send failed:', err); });
+    }, 100);
+  });
+})();
 </script>
 </body>
 </html>
+
