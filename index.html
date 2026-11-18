@@ -334,6 +334,14 @@ svg.balloon-cluster.right .balloon:nth-child(3){animation-delay:-.6s}
 #ticket.confirmed #stamp{opacity:1;transform:rotate(-12deg) scale(1)}
 .ticket-actions{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap;justify-content:center}
 #ticketHint{font-family:'Caveat',cursive;font-size:19px;color:var(--brown-soft);text-align:center;margin-top:12px}
+.s-note{display:block;margin-top:10px;font-size:13.5px;line-height:1.45;color:#8A5A2B;font-family:Nunito,system-ui,sans-serif}
+#rsvpFallback{display:none;margin:14px auto 0;max-width:640px;text-align:left;background:#FFF4E3;border:1px solid rgba(232,73,15,.25);border-radius:16px;padding:14px 16px;font-family:Nunito,system-ui,sans-serif;font-size:14.5px;line-height:1.5;color:#6B3B14}
+#rsvpFallback.show{display:block}
+#rsvpFallback b{color:#A33A0A}
+#rsvpFallback .fb-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#rsvpFallback .fb-btns .btn{padding:10px 14px;font-size:13.5px;gap:6px;border-radius:12px}
+#rsvpFallback .fb-btns #fbRetry{padding:10px 12px}
+#rsvpFallback a.btn{text-decoration:none;display:inline-flex;align-items:center}
 /* CLOSING */
 #closing{background:radial-gradient(700px 400px at 80% 10%,rgba(255,197,61,.4),transparent 60%),linear-gradient(135deg,var(--orange),var(--orange-deep) 60%,#C93A08);padding:86px 0 96px;text-align:center;color:#fff;overflow:hidden}
 .big-script{font-family:'Marck Script',cursive;font-size:clamp(30px,4.2vw,50px);line-height:1.25;max-width:860px;margin:0 auto;text-shadow:0 3px 14px rgba(150,45,0,.45)}
@@ -826,6 +834,14 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
           <button class="btn btn-secondary btn-sm js-ics">В календарь 📅</button>
         </div>
         <p id="ticketHint">Подтвердите участие — и приглашение станет именным ✨</p>
+        <div id="rsvpFallback" role="status" aria-live="polite">
+          <b>Заявка сохранена.</b> <span id="fbNote">Автоотправка не прошла — отправьте письмо, текст уже готов.</span>
+          <div class="fb-btns">
+            <a class="btn btn-primary btn-sm" id="fbMail" href="mailto:horizon-mos@yandex.ru">Отправить письмом ✉️</a>
+            <button class="btn btn-secondary btn-sm" id="fbCopy">Скопировать текст</button>
+            <button class="btn btn-ghost btn-sm" id="fbRetry">Повторить</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1113,7 +1129,7 @@ rsvpForm.addEventListener('submit',function(e){
   setTimeout(function(){
     btn.classList.remove('loading');
     saved={name:name,contact:contact,guests:guests,kids:$('#fKids').checked,wish:$('#fWish').value.trim(),code:genCode(),ts:Date.now()};
-    saveRsvp();window.GZ_toast=toast;if(window.sendToTelegram)window.sendToTelegram(saved);setName(name);renderSuccess();
+    saveRsvp();window.GZ_toast=toast;var queued=window.sendRsvp?window.sendRsvp(saved):false;setName(name);renderSuccess();if(!queued){var sn=document.getElementById("sumText");if(sn)sn.innerHTML+='<br><span class="s-note">Письмо с заявкой нужно отправить вручную — кнопка «Отправить письмом» под приглашением.</span>'}
     Sound.chime();burstAt(ticket,150);
     toast('Спасибо, '+name.split(' ')[0]+'! Ждём вас 26 ноября 🧡');
   },700);
@@ -1220,36 +1236,34 @@ window.GZ_toast=toast;
   }
 })();
 
-/* ================== 2) ОТПРАВКА ЗАЯВКИ В TELEGRAM ====================
-   Токен бота НЕЛЬЗЯ хранить в этом файле: страница на GitHub Pages
-   публична, любой посетитель увидит токен и сможет читать ваш чат и
-   писать от имени бота (Telegram отзывает утёкшие токены автоматически).
-   Поэтому заявка уходит на посредник, а токен хранится у него в секретах.
-   Код поддерживает любой CORS-посредник:
-     • Google Apps Script — https://script.google.com/macros/s/…/exec (проще: без карты и CLI)
-     • Cloudflare Worker  — https://имя.субдомен.workers.dev/         (надёжнее: видно ошибку доставки)
-     • Яндекс Cloud Function — https://functions.yandexcloud.net/<id> (если есть облако Яндекса)
-   Пустая строка = отправка выключена.                                  */
-/* Отправка заявки в Telegram.
+/* ================== 2) ОТПРАВКА ЗАЯВКИ НА ПОЧТУ ====================
+   Заявки приходят на horizon-mos@yandex.ru.
 
-   Соединение с воркером иногда обрывается (ERR_CONNECTION_RESET в мобильной
-   сети, блокировка у провайдера, зависший шлюз). Поэтому:
-     • заявка сначала кладётся в очередь в localStorage и удаляется оттуда
-       только после успешного ответа — потерять её нельзя;
-     • запрос повторяется до 3 раз с паузой, у каждой попытки свой таймаут;
-     • неотправленное досылается при следующем открытии страницы.
-   FORM_ENDPOINT может содержать несколько адресов через «|» — берётся первый,
-   который ответил.                                                        */
-var FORM_ENDPOINT = 'https://gorizont-rsvp.akinfeev-3.workers.dev/';
+   Автоотправку принимает Web3Forms — бесплатный приём форм для статических
+   страниц (250 заявок в месяц). Ключ доступа публичен по замыслу сервиса:
+   он позволяет только отправлять письма на один конкретный ящик.
+
+   Как получить ключ (2 минуты):
+     1. Открыть https://web3forms.com/ и нажать «Create Access Key»
+     2. Ввести horizon-mos@yandex.ru — ключ придёт письмом на этот ящик
+     3. Вставить ключ в RSVP_KEY ниже и опубликовать страницу
+
+   Пока ключ пуст, работает запасной путь: заявка открывается письмом в
+   почтовой программе гостя (mailto) — без настройки, но с кнопкой «Отправить».
+
+   Соединение иногда обрывается, поэтому заявка сначала кладётся в очередь
+   в localStorage и удаляется оттуда только после успешного ответа сервиса:
+   потерять её нельзя, а неотправленное досылается при следующем открытии. */
+var RSVP_KEY = '9df89397-f418-4804-ab3c-cd6871da329c';                   // ← ключ Web3Forms (см. выше)
+var RSVP_ENDPOINT = 'https://api.web3forms.com/submit';
+var RSVP_EMAIL = 'horizon-mos@yandex.ru';
 var RSVP_QUEUE = 'gz_rsvp_queue';
-var RSVP_TRIES = [0, 900, 2600];   // паузы перед 1-й, 2-й и 3-й попыткой, мс
-var RSVP_TIMEOUT = 12000;          // ожидание ответа на одну попытку, мс
+var RSVP_TRIES = [0, 1500];          // паузы перед попытками, мс
+var RSVP_TIMEOUT = 8000;             // ожидание ответа на одну попытку, мс
+var RSVP_LIMIT = 20;                 // сколько заявок держим в очереди
+var rsvpLast = null;                 // последняя заявка — для кнопок в запасном блоке
 
-function rsvpEndpoints(){
-  return String(FORM_ENDPOINT || '').split('|')
-    .map(function(s){return s.trim()})
-    .filter(function(s){return s.indexOf('http') === 0});
-}
+/* ---------- очередь ---------- */
 /* Первый <script> обёрнут в IIFE со 'use strict' — его store здесь недоступен,
    поэтому работаем с localStorage напрямую (приватный режим может запретить). */
 function rsvpQueueGet(){
@@ -1257,7 +1271,7 @@ function rsvpQueueGet(){
   catch (e) { return [] }
 }
 function rsvpQueueSet(list){
-  try { localStorage.setItem(RSVP_QUEUE, JSON.stringify(list.slice(-20))) } catch (e) {}
+  try { localStorage.setItem(RSVP_QUEUE, JSON.stringify(list.slice(-RSVP_LIMIT))) } catch (e) {}
 }
 function rsvpQueueAdd(item){
   var list = rsvpQueueGet().filter(function(it){return it.code !== item.code});
@@ -1267,35 +1281,39 @@ function rsvpQueueAdd(item){
 function rsvpQueueDrop(code){
   rsvpQueueSet(rsvpQueueGet().filter(function(it){return it.code !== code}));
 }
+
+/* ---------- письмо ---------- */
 function rsvpPayload(d){
-  return JSON.stringify({
-    name: d.name,
-    contact: d.contact || '',
+  var o = {
+    access_key: RSVP_KEY,
+    subject: 'Заявка на юбилей — ' + (d.name || 'гость'),
+    from_name: 'Приглашение «Горизонт»',
+    name: d.name || '',
+    contact: d.contact || '—',
     guests: d.guests || 1,
-    kids: !!d.kids,
-    wish: d.wish || '',
+    kids: d.kids ? 'да, с детьми' : 'нет',
+    wish: d.wish || '—',
     code: d.code || '',
-    page: location.href
-  });
+    page: location.href,
+    botcheck: false
+  };
+  // если гость оставил e-mail — ответ на письмо уйдёт прямо ему
+  if (/^\S+@\S+\.\S{2,}$/.test(d.contact || '')) o.replyto = d.contact;
+  return JSON.stringify(o);
 }
 
 /* Одна попытка. cb(err, status, body): err — только сетевой сбой. */
-function rsvpPost(url, payload, cb){
-  var toScript = url.indexOf('script.google.com') !== -1;
+function rsvpPost(payload, cb){
   var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
   var timer = setTimeout(function(){ if (ctrl) ctrl.abort() }, RSVP_TIMEOUT);
-  var opts = { method: 'POST', body: payload };
-  if (toScript) {
-    // Apps Script не отвечает на preflight: «простой» запрос без чтения ответа.
-    opts.mode = 'no-cors';
-    opts.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
-  } else {
-    opts.headers = { 'Content-Type': 'application/json' };
-  }
+  var opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: payload
+  };
   if (ctrl) opts.signal = ctrl.signal;
 
-  fetch(url, opts).then(function(r){
-    if (toScript) { clearTimeout(timer); return cb(null, 200, { ok: true }) }
+  fetch(RSVP_ENDPOINT, opts).then(function(r){
     return r.text().then(function(txt){
       var j = {};
       try { j = JSON.parse(txt) } catch (e) {}
@@ -1308,67 +1326,135 @@ function rsvpPost(url, payload, cb){
   });
 }
 
-/* Отправка с повторами: перебираем адреса и попытки, пока не ответят. */
-function rsvpSend(payload, onDone){
-  var urls = rsvpEndpoints();
-  if (!urls.length) {
-    console.info('FORM_ENDPOINT не задан — отправка в Telegram отключена.');
-    return onDone(true);
-  }
-  var plan = [];
-  urls.forEach(function(u){
-    RSVP_TRIES.forEach(function(delay){ plan.push({ url: u, delay: delay }) });
-  });
-
+/* Отправка с повторами: пока не ответят или не кончатся попытки. */
+function rsvpSend(item, onDone){
+  if (!RSVP_KEY) return onDone(false, 'ключ не задан');
+  var payload = rsvpPayload(item.data);
   var i = 0;
   (function step(){
-    if (i >= plan.length) return onDone(false, 'сеть недоступна');
-    var p = plan[i++];
+    if (i >= RSVP_TRIES.length) return onDone(false, 'сеть недоступна');
+    var delay = RSVP_TRIES[i++];
     setTimeout(function(){
-      rsvpPost(p.url, payload, function(err, status, body){
-        var ok = !err && status < 400 && !(body && body.ok === false);
+      rsvpPost(payload, function(err, status, body){
+        var ok = !err && status < 400 && body && body.success === true;
         if (ok) return onDone(true);
-        // 4xx — сервер понял запрос и отказал (например, «не указано имя»): повтор не поможет.
+        // сервис ответил отказом (неверный ключ, лимит) — повтор не поможет
+        if (!err && body && body.success === false) return onDone(false, body.message || 'отказ сервиса');
         if (!err && status >= 400 && status < 500 && status !== 429) {
-          return onDone(false, (body && body.error) || ('HTTP ' + status));
+          return onDone(false, (body && body.message) || ('HTTP ' + status));
         }
-        if (err) console.warn('Заявка не отправлена (' + p.url + '): ' + (err.message || err.name));
+        if (err) console.warn('Заявка не ушла на почту: ' + (err.message || err.name));
         step();
       });
-    }, p.delay);
+    }, delay);
   })();
 }
 
-function rsvpNotifyFail(d){
-  if (!window.GZ_toast) return;
-  window.GZ_toast('Заявка сохранена, уведомим организаторов позже', 'Повторить', function(){
-    window.sendToTelegram(d);
-  });
+/* ---------- запасной путь: письмо ---------- */
+function rsvpText(d){
+  return [
+    'Заявка на юбилей центра «Горизонт»',
+    '26 ноября 2026: сбор гостей в 15:00, начало в 16:00',
+    'Место: центр «Россолимо», 1-й Красковский пр., 38Б, корп. 2',
+    '',
+    'Имя: ' + (d.name || '—'),
+    'Контакт: ' + (d.contact || '—'),
+    'Гостей: ' + (d.guests || 1) + (d.kids ? ' (с детьми)' : ''),
+    'Пожелание: ' + (d.wish || '—'),
+    'Код приглашения: ' + (d.code || '—')
+  ].join('\n');
+}
+function rsvpMailtoHref(d){
+  return 'mailto:' + RSVP_EMAIL
+    + '?subject=' + encodeURIComponent('Заявка на юбилей — ' + (d.name || 'гость'))
+    + '&body=' + encodeURIComponent(rsvpText(d));
 }
 
-window.sendToTelegram = function sendToTelegram(d){
-  var item = {
-    code: d.code || ('tmp-' + Date.now()),
-    name: d.name || '',
-    ts: Date.now(),
-    payload: rsvpPayload(d)
-  };
-  rsvpQueueAdd(item);   // сначала фиксируем, потом отправляем: обрыв не потеряет заявку
-  rsvpSend(item.payload, function(ok, why){
-    if (ok) { rsvpQueueDrop(item.code); return }
-    console.warn('Заявка не отправлена в Telegram:', why);
+function rsvpShowFallback(d, scrollTo, noKey){
+  var box = document.getElementById('rsvpFallback');
+  if (!box) return;
+  var mail = document.getElementById('fbMail');
+  if (mail) mail.href = rsvpMailtoHref(d);
+  var note = document.getElementById('fbNote');
+  if (note) note.textContent = noKey
+    ? 'Осталось отправить письмо — текст уже готов.'
+    : 'Автоотправка не прошла — отправьте письмо, текст уже готов.';
+  var retry = document.getElementById('fbRetry');
+  if (retry) retry.style.display = noKey ? 'none' : '';
+  box.classList.add('show');
+  if (scrollTo) {
+    try { box.scrollIntoView({block:'center', behavior:'smooth'}) } catch(e) { box.scrollIntoView() }
+  }
+}
+window.rsvpShowFallback = rsvpShowFallback;
+
+function rsvpHideFallback(){
+  var box = document.getElementById('rsvpFallback');
+  if (box) box.classList.remove('show');
+}
+
+function rsvpCopyText(txt){
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function(){
+      if (window.GZ_toast) window.GZ_toast('Текст заявки скопирован 📋');
+    }, function(){
+      if (window.GZ_toast) window.GZ_toast('Браузер не дал скопировать — выделите текст письма вручную');
+    });
+  } else if (window.GZ_toast) {
+    window.GZ_toast('Браузер не поддерживает копирование — выделите текст письма вручную');
+  }
+}
+
+(function rsvpBindFallback(){
+  var copy = document.getElementById('fbCopy'), retry = document.getElementById('fbRetry');
+  if (copy) copy.addEventListener('click', function(){
+    if (rsvpLast) rsvpCopyText(rsvpText(rsvpLast));
+  });
+  if (retry) retry.addEventListener('click', function(){ window.flushRsvpQueue() });
+})();
+
+function rsvpNotifyFail(d){
+  if (window.GZ_toast) {
+    window.GZ_toast('Заявка сохранена, но письмо не ушло', 'Показать', function(){
+      rsvpShowFallback(d, true);
+    });
+  }
+  rsvpShowFallback(d);
+}
+
+/* Возвращает true, если заявка ушла в автоматическую отправку (оптимистично:
+   успех подтвердится ответом сервиса и всплывающим сообщением). */
+window.sendRsvp = function sendRsvp(d){
+  rsvpLast = d;
+  rsvpHideFallback();
+  if (!RSVP_KEY) {                    // ключ не настроен — сразу запасной путь
+    rsvpShowFallback(d, true, true);
+    return false;
+  }
+  var item = { code: d.code || ('tmp-' + Date.now()), ts: Date.now(), data: d };
+  rsvpQueueAdd(item);                 // сначала фиксируем, потом отправляем
+  rsvpSend(item, function(ok, why){
+    if (ok) { rsvpQueueDrop(item.code); rsvpHideFallback(); return }
+    console.warn('Заявка не отправлена на почту:', why);
     rsvpNotifyFail(d);
   });
+  return true;
 };
 
 /* Досылка того, что не ушло в прошлый раз. */
 window.flushRsvpQueue = function flushRsvpQueue(){
+  if (!RSVP_KEY) return;
   var list = rsvpQueueGet();
   if (!list.length) return;
   var item = list[0];
-  rsvpSend(item.payload, function(ok){
-    if (!ok) return;                       // сеть всё ещё недоступна — попробуем в следующий раз
+  rsvpSend(item, function(ok, why){
+    if (!ok) {
+      // неверный ключ или отказ сервиса — повторять при каждом открытии бессмысленно
+      if (why && why !== 'сеть недоступна') { rsvpQueueDrop(item.code); flushRsvpQueue() }
+      return;
+    }
     rsvpQueueDrop(item.code);
+    rsvpHideFallback();
     if (window.GZ_toast) window.GZ_toast('Заявка отправлена организаторам 🧡');
     flushRsvpQueue();
   });
