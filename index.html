@@ -1251,6 +1251,10 @@ window.GZ_toast=toast;
    Пока ключ пуст, работает запасной путь: заявка открывается письмом в
    почтовой программе гостя (mailto) — без настройки, но с кнопкой «Отправить».
 
+   Заявку можно продублировать в Telegram — напрямую, без посредников
+   (блок «Telegram напрямую» ниже). Токен в странице виден, так и решено:
+   он умеет только писать в один чат, а страница статическая.
+
    Соединение иногда обрывается, поэтому заявка сначала кладётся в очередь
    в localStorage и удаляется оттуда только после успешного ответа сервиса:
    потерять её нельзя, а неотправленное досылается при следующем открытии. */
@@ -1262,6 +1266,18 @@ var RSVP_TRIES = [0, 1500];          // паузы перед попытками
 var RSVP_TIMEOUT = 8000;             // ожидание ответа на одну попытку, мс
 var RSVP_LIMIT = 20;                 // сколько заявок держим в очереди
 var rsvpLast = null;                 // последняя заявка — для кнопок в запасном блоке
+
+/* ---------- Telegram напрямую, без посредников ----------
+   Токен лежит в странице открытым текстом — так и решено: он позволяет
+   только писать в один чат. Если канал не нужен, оставьте строки пустыми.
+     TG_TOKEN — токен бота от @BotFather (вид 123456789:AA…)
+     TG_CHAT  — id чата или канала: число (например -1001234567890)
+                либо @имя канала, куда бот добавлен администратором
+   Канал дублирующий: основным остаётся почта, потому что api.telegram.org
+   из российских сетей часто недоступен. */
+var TG_TOKEN = '';
+var TG_CHAT  = '';
+var TG_TRIES = [0, 1500];            // паузы перед попытками, мс
 
 /* ---------- очередь ---------- */
 /* Первый <script> обёрнут в IIFE со 'use strict' — его store здесь недоступен,
@@ -1422,22 +1438,96 @@ function rsvpNotifyFail(d){
   rsvpShowFallback(d);
 }
 
+/* ---------- Telegram ---------- */
+/* Текст заявки — как в примере обработчика. */
+function tgText(d){
+  return '🎈 Новая заявка'
+    + '\nИмя: ' + (d.name || '—')
+    + '\nКонтакт: ' + (d.contact || '—')
+    + '\nГостей: ' + (d.guests || 1)
+    + '\nДети: ' + (d.kids ? 'да' : 'нет')
+    + '\nПожелание: ' + (d.wish || '—');
+}
+
+/* chat_id числом, если это число: Telegram принимает и -100…, и 123. */
+function tgChatId(){
+  return /^-?\d+$/.test(String(TG_CHAT)) ? Number(TG_CHAT) : TG_CHAT;
+}
+
+/* Одна попытка. cb(err, status, body): err — только сетевой сбой. */
+function tgPost(text, cb){
+  var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+  var timer = setTimeout(function(){ if (ctrl) ctrl.abort() }, RSVP_TIMEOUT);
+  var opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: tgChatId(), text: text, disable_web_page_preview: true })
+  };
+  if (ctrl) opts.signal = ctrl.signal;
+
+  fetch('https://api.telegram.org/bot' + TG_TOKEN + '/sendMessage', opts).then(function(r){
+    return r.text().then(function(txt){
+      var j = {};
+      try { j = JSON.parse(txt) } catch (e) {}
+      clearTimeout(timer);
+      cb(null, r.status, j);
+    });
+  }).catch(function(err){
+    clearTimeout(timer);
+    cb(err);
+  });
+}
+
+/* Отправка с одним повтором. Очереди нет: почта надёжнее, а неотправленную
+   заявку всё равно досылает flushRsvpQueue по почтовому каналу. */
+function tgSend(d, onDone){
+  if (!TG_TOKEN || !TG_CHAT) return onDone(false, 'канал не настроен');
+  var text = tgText(d);
+  var i = 0;
+  (function step(){
+    if (i >= TG_TRIES.length) return onDone(false, 'сеть недоступна');
+    var delay = TG_TRIES[i++];
+    setTimeout(function(){
+      tgPost(text, function(err, status, body){
+        if (!err && body && body.ok === true) return onDone(true);
+        // неверный токен или бот не в чате — повтор не поможет
+        if (!err && body && body.ok === false) {
+          return onDone(false, body.description || ('HTTP ' + status));
+        }
+        if (err) console.warn('Заявка не ушла в Telegram: ' + (err.message || err.name));
+        step();
+      });
+    }, delay);
+  })();
+}
+
 /* Возвращает true, если заявка ушла в автоматическую отправку (оптимистично:
    успех подтвердится ответом сервиса и всплывающим сообщением). */
 window.sendRsvp = function sendRsvp(d){
   rsvpLast = d;
   rsvpHideFallback();
-  if (!RSVP_KEY) {                    // ключ не настроен — сразу запасной путь
+  var byMail = !!RSVP_KEY, byTg = !!(TG_TOKEN && TG_CHAT);
+  if (!byMail && !byTg) {             // не настроен ни один канал — запасной путь
     rsvpShowFallback(d, true, true);
     return false;
   }
-  var item = { code: d.code || ('tmp-' + Date.now()), ts: Date.now(), data: d };
-  rsvpQueueAdd(item);                 // сначала фиксируем, потом отправляем
-  rsvpSend(item, function(ok, why){
-    if (ok) { rsvpQueueDrop(item.code); rsvpHideFallback(); return }
-    console.warn('Заявка не отправлена на почту:', why);
-    rsvpNotifyFail(d);
-  });
+  if (byMail) {
+    var item = { code: d.code || ('tmp-' + Date.now()), ts: Date.now(), data: d };
+    rsvpQueueAdd(item);               // сначала фиксируем, потом отправляем
+    rsvpSend(item, function(ok, why){
+      if (ok) { rsvpQueueDrop(item.code); rsvpHideFallback(); return }
+      console.warn('Заявка не отправлена на почту:', why);
+      rsvpNotifyFail(d);
+    });
+  }
+  if (byTg) {
+    tgSend(d, function(ok, why){
+      if (ok) return;
+      console.warn('Заявка не ушла в Telegram:', why);
+      // почта уже сохранена — второй канал не должен показывать запасной путь
+      if (!byMail) rsvpNotifyFail(d);
+    });
+  }
   return true;
 };
 
