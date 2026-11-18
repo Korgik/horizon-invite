@@ -1190,6 +1190,9 @@ $('#copyAddrBtn').addEventListener('click',function(){copyText('Москва, 1-
 
 /* ---------- SOUND on primary clicks ---------- */
 document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('.btn-primary'))Sound.click()});
+
+/* Тосты нужны и второму блоку: сообщение о сбое отправки и досылке очереди. */
+window.GZ_toast=toast;
 })();
 </script>
 
@@ -1227,51 +1230,150 @@ document.addEventListener('click',function(e){if(e.target.closest&&e.target.clos
      • Cloudflare Worker  — https://имя.субдомен.workers.dev/         (надёжнее: видно ошибку доставки)
      • Яндекс Cloud Function — https://functions.yandexcloud.net/<id> (если есть облако Яндекса)
    Пустая строка = отправка выключена.                                  */
-var FORM_ENDPOINT = 'https://gorizont-rsvp.akinfeev-3.workers.dev/';   // впишите адрес одного из вариантов
+/* Отправка заявки в Telegram.
 
-window.sendToTelegram = function sendToTelegram(d){
-  if (!FORM_ENDPOINT || FORM_ENDPOINT.indexOf('http') !== 0) {
-    console.info('FORM_ENDPOINT не задан — отправка в Telegram отключена.');
-    return;
+   Соединение с воркером иногда обрывается (ERR_CONNECTION_RESET в мобильной
+   сети, блокировка у провайдера, зависший шлюз). Поэтому:
+     • заявка сначала кладётся в очередь в localStorage и удаляется оттуда
+       только после успешного ответа — потерять её нельзя;
+     • запрос повторяется до 3 раз с паузой, у каждой попытки свой таймаут;
+     • неотправленное досылается при следующем открытии страницы.
+   FORM_ENDPOINT может содержать несколько адресов через «|» — берётся первый,
+   который ответил.                                                        */
+var FORM_ENDPOINT = 'https://gorizont-rsvp.akinfeev-3.workers.dev/';
+var RSVP_QUEUE = 'gz_rsvp_queue';
+var RSVP_TRIES = [0, 900, 2600];   // паузы перед 1-й, 2-й и 3-й попыткой, мс
+var RSVP_TIMEOUT = 12000;          // ожидание ответа на одну попытку, мс
+
+function rsvpEndpoints(){
+  return String(FORM_ENDPOINT || '').split('|')
+    .map(function(s){return s.trim()})
+    .filter(function(s){return s.indexOf('http') === 0});
+}
+/* Первый <script> обёрнут в IIFE со 'use strict' — его store здесь недоступен,
+   поэтому работаем с localStorage напрямую (приватный режим может запретить). */
+function rsvpQueueGet(){
+  try { var v = JSON.parse(localStorage.getItem(RSVP_QUEUE) || '[]'); return v instanceof Array ? v : [] }
+  catch (e) { return [] }
+}
+function rsvpQueueSet(list){
+  try { localStorage.setItem(RSVP_QUEUE, JSON.stringify(list.slice(-20))) } catch (e) {}
+}
+function rsvpQueueAdd(item){
+  var list = rsvpQueueGet().filter(function(it){return it.code !== item.code});
+  list.push(item);
+  rsvpQueueSet(list);
+}
+function rsvpQueueDrop(code){
+  rsvpQueueSet(rsvpQueueGet().filter(function(it){return it.code !== code}));
+}
+function rsvpPayload(d){
+  return JSON.stringify({
+    name: d.name,
+    contact: d.contact || '',
+    guests: d.guests || 1,
+    kids: !!d.kids,
+    wish: d.wish || '',
+    code: d.code || '',
+    page: location.href
+  });
+}
+
+/* Одна попытка. cb(err, status, body): err — только сетевой сбой. */
+function rsvpPost(url, payload, cb){
+  var toScript = url.indexOf('script.google.com') !== -1;
+  var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+  var timer = setTimeout(function(){ if (ctrl) ctrl.abort() }, RSVP_TIMEOUT);
+  var opts = { method: 'POST', body: payload };
+  if (toScript) {
+    // Apps Script не отвечает на preflight: «простой» запрос без чтения ответа.
+    opts.mode = 'no-cors';
+    opts.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
+  } else {
+    opts.headers = { 'Content-Type': 'application/json' };
   }
+  if (ctrl) opts.signal = ctrl.signal;
 
-  function notifyFail(){
-    if (window.GZ_toast) {
-      window.GZ_toast('Заявка сохранена, но уведомление не ушло', 'Повторить', function(){
-        sendToTelegram(d);
-      });
-    }
-  }
-
-  // Cloudflare Worker отвечает с CORS — ответ читаем и видим ошибку доставки.
-  // Google Apps Script CORS-preflight не обрабатывает, поэтому для него шлём
-  // «простой» запрос text/plain + no-cors (ответ браузер скрывает).
-  var toScript = FORM_ENDPOINT.indexOf('script.google.com') !== -1;
-  var payload = JSON.stringify({
-      name: d.name,
-      contact: d.contact || '',
-      guests: d.guests || 1,
-      kids: !!d.kids,
-      wish: d.wish || '',
-      code: d.code || '',
-      page: location.href
-    });
-  fetch(FORM_ENDPOINT, toScript
-    ? { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: payload }
-    : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload }
-  ).then(function(r){
-    if (toScript) return { ok: true };   // no-cors: ответ недоступен, считаем отправленным
+  fetch(url, opts).then(function(r){
+    if (toScript) { clearTimeout(timer); return cb(null, 200, { ok: true }) }
     return r.text().then(function(txt){
       var j = {};
-      try { j = JSON.parse(txt); } catch (e) {}
-      if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
-      return j;
+      try { j = JSON.parse(txt) } catch (e) {}
+      clearTimeout(timer);
+      cb(null, r.status, j);
     });
   }).catch(function(err){
-    console.warn('Заявка не отправлена в Telegram:', err);
-    notifyFail();
+    clearTimeout(timer);
+    cb(err);
+  });
+}
+
+/* Отправка с повторами: перебираем адреса и попытки, пока не ответят. */
+function rsvpSend(payload, onDone){
+  var urls = rsvpEndpoints();
+  if (!urls.length) {
+    console.info('FORM_ENDPOINT не задан — отправка в Telegram отключена.');
+    return onDone(true);
+  }
+  var plan = [];
+  urls.forEach(function(u){
+    RSVP_TRIES.forEach(function(delay){ plan.push({ url: u, delay: delay }) });
+  });
+
+  var i = 0;
+  (function step(){
+    if (i >= plan.length) return onDone(false, 'сеть недоступна');
+    var p = plan[i++];
+    setTimeout(function(){
+      rsvpPost(p.url, payload, function(err, status, body){
+        var ok = !err && status < 400 && !(body && body.ok === false);
+        if (ok) return onDone(true);
+        // 4xx — сервер понял запрос и отказал (например, «не указано имя»): повтор не поможет.
+        if (!err && status >= 400 && status < 500 && status !== 429) {
+          return onDone(false, (body && body.error) || ('HTTP ' + status));
+        }
+        if (err) console.warn('Заявка не отправлена (' + p.url + '): ' + (err.message || err.name));
+        step();
+      });
+    }, p.delay);
+  })();
+}
+
+function rsvpNotifyFail(d){
+  if (!window.GZ_toast) return;
+  window.GZ_toast('Заявка сохранена, уведомим организаторов позже', 'Повторить', function(){
+    window.sendToTelegram(d);
+  });
+}
+
+window.sendToTelegram = function sendToTelegram(d){
+  var item = {
+    code: d.code || ('tmp-' + Date.now()),
+    name: d.name || '',
+    ts: Date.now(),
+    payload: rsvpPayload(d)
+  };
+  rsvpQueueAdd(item);   // сначала фиксируем, потом отправляем: обрыв не потеряет заявку
+  rsvpSend(item.payload, function(ok, why){
+    if (ok) { rsvpQueueDrop(item.code); return }
+    console.warn('Заявка не отправлена в Telegram:', why);
+    rsvpNotifyFail(d);
   });
 };
+
+/* Досылка того, что не ушло в прошлый раз. */
+window.flushRsvpQueue = function flushRsvpQueue(){
+  var list = rsvpQueueGet();
+  if (!list.length) return;
+  var item = list[0];
+  rsvpSend(item.payload, function(ok){
+    if (!ok) return;                       // сеть всё ещё недоступна — попробуем в следующий раз
+    rsvpQueueDrop(item.code);
+    if (window.GZ_toast) window.GZ_toast('Заявка отправлена организаторам 🧡');
+    flushRsvpQueue();
+  });
+};
+setTimeout(function(){ window.flushRsvpQueue() }, 2500);
 </script>
 </body>
 </html>
