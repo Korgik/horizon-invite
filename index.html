@@ -138,22 +138,6 @@ section{scroll-margin-top:calc(var(--nav-h) + 18px);position:relative}
 @keyframes fiveBounce{35%{transform:scale(1.18) rotate(-5deg)}70%{transform:scale(.94) rotate(3deg)}}
 @keyframes fiveFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes floatY{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-14px) rotate(2deg)}}
-/* Пучки шаров стоят по обе стороны от входа, внутри фото-рамки: размеры в % от рамки,
-   поэтому шары держатся у двери при любой ширине экрана. */
-.photo-inner svg.balloon-cluster{position:absolute;bottom:8%;width:16%;height:auto;z-index:3;overflow:visible}
-.photo-inner svg.balloon-cluster.left{left:19.5%}
-.photo-inner svg.balloon-cluster.right{right:19.5%}
-.balloon{cursor:pointer;transform-origin:center bottom;animation:balloonFloat 4.5s ease-in-out infinite}
-.balloon:nth-child(2){animation-delay:-.9s}.balloon:nth-child(3){animation-delay:-1.7s}.balloon:nth-child(4){animation-delay:-2.5s}.balloon:nth-child(5){animation-delay:-3.3s}
-/* Правый пучок качается в своей фазе — чтобы зеркальные шары не двигались синхронно. */
-svg.balloon-cluster.right .balloon:nth-child(1){animation-delay:-2.2s}
-svg.balloon-cluster.right .balloon:nth-child(2){animation-delay:-3.1s}
-svg.balloon-cluster.right .balloon:nth-child(3){animation-delay:-.6s}
-@keyframes balloonFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(3deg)}}
-.balloon.popped{animation:popOut .3s forwards}
-@keyframes popOut{to{transform:scale(1.6);opacity:0}}
-.balloon.reborn{animation:popIn .5s cubic-bezier(.3,1.7,.5,1)}
-@keyframes popIn{from{transform:scale(0);opacity:0}}
 .doodle{position:absolute;pointer-events:none;color:var(--orange-deep);opacity:.85;animation:floatY 6s ease-in-out infinite}
 .doodle.h1{right:-6px;top:-26px;width:54px;animation-delay:-2s}
 .doodle.h2{left:34%;bottom:-6px;width:38px;color:var(--gold)}
@@ -240,13 +224,11 @@ svg.balloon-cluster.right .balloon:nth-child(3){animation-delay:-.6s}
 .prog-item:hover .prog-icon{transform:scale(1.12) rotate(-8deg)}
 .prog-card{background:rgba(255,140,40,.07);border:1.5px solid rgba(255,170,80,.25);border-radius:20px;padding:20px 24px;transition:.25s}
 .prog-item:hover .prog-card{transform:translateX(6px);border-color:rgba(255,197,61,.6);background:rgba(255,140,40,.12)}
-.prog-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.prog-top{margin-bottom:6px}
 .prog-time{font-weight:900;font-size:14px;color:#fff;background:linear-gradient(120deg,var(--orange),var(--orange-deep));padding:5px 14px;border-radius:999px;letter-spacing:.06em}
-.prog-dur{font-size:12px;font-weight:800;color:#D9B48F}
 .prog-card h3{font-size:19px;font-weight:900}
 .prog-card p{font-size:14.5px;font-weight:700;color:#E3C29C;margin-top:5px}
 .prog-actions{display:flex;gap:14px;justify-content:center;margin-top:48px;flex-wrap:wrap}
-.prog-note{font-family:'Caveat',cursive;font-size:20px;color:#D9B48F;text-align:center;margin-top:16px}
 .ember{position:absolute;border-radius:50%;background:var(--gold);pointer-events:none;animation:emberUp linear infinite}
 @keyframes emberUp{from{transform:translateY(0);opacity:0}12%{opacity:.7}to{transform:translateY(-46vh);opacity:0}}
 /* PLACE */
@@ -257,7 +239,6 @@ svg.balloon-cluster.right .balloon:nth-child(3){animation-delay:-.6s}
 .place-photo svg{width:100%;height:auto}
 .entry-badge{position:absolute;top:18px;left:18px;background:linear-gradient(120deg,var(--orange),var(--orange-deep));color:#fff;font-weight:900;font-size:14px;padding:9px 18px;border-radius:999px;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
 .entry-badge .one{width:22px;height:22px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:12px}
-.place-hand{font-family:'Caveat',cursive;font-weight:700;font-size:21px;color:var(--brown-soft);text-align:center;margin-top:18px;transform:rotate(-1deg)}
 .addr-card{background:var(--paper);border-radius:24px;padding:28px;border:2px solid rgba(232,73,15,.2);box-shadow:0 20px 50px -28px rgba(232,73,15,.5);margin-bottom:20px}
 .a-label{font-weight:900;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange-deep);margin-bottom:8px}
 .a-main{font-size:21px;font-weight:900;line-height:1.35}
@@ -283,20 +264,6 @@ svg.balloon-cluster.right .balloon:nth-child(3){animation-delay:-.6s}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .field-error{display:none;color:var(--danger);font-size:12.5px;font-weight:800;margin-top:6px}
 .field-error.show{display:block}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.stepper{display:flex;align-items:center;gap:14px}
-.stepper button{width:44px;height:44px;border-radius:50%;border:2px solid rgba(232,73,15,.3);background:var(--cream2);font-size:22px;font-weight:900;color:var(--orange-deep);transition:.2s;line-height:1}
-.stepper button:hover:not([disabled]){background:var(--orange);color:#fff;transform:scale(1.08)}
-.stepper button[disabled]{opacity:.35;cursor:not-allowed}
-#guestVal{font-size:26px;font-weight:900;min-width:34px;text-align:center}
-.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:var(--cream2);border-radius:14px;border:2px solid rgba(232,73,15,.14);margin-bottom:14px}
-.sw-lbl{font-weight:800;font-size:14px}
-.switch{position:relative;width:54px;height:30px;flex-shrink:0}
-.switch input{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;z-index:2;margin:0}
-.switch .track{position:absolute;inset:0;border-radius:999px;background:#E8CFA4;transition:.25s}
-.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(74,36,16,.35);transition:.25s}
-.switch input:checked+.track{background:linear-gradient(120deg,var(--orange),var(--orange-deep))}
-.switch input:checked+.track::after{transform:translateX(24px)}
 .check-row{display:flex;align-items:center;gap:10px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:20px}
 .check-row input{width:20px;height:20px;accent-color:var(--orange)}
 .form-foot{font-size:12.5px;font-weight:700;color:var(--brown-soft);margin-top:14px;text-align:center}
@@ -321,9 +288,6 @@ svg.balloon-cluster.right .balloon:nth-child(3){animation-delay:-.6s}
 .t-details{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
 .t-details span{background:rgba(255,122,0,.1);border:1.5px solid rgba(232,73,15,.25);border-radius:999px;padding:5px 13px;font-weight:900;font-size:12.5px}
 .t-addr{font-size:12.5px;font-weight:800;color:var(--brown-soft)}
-.t-guests{margin-top:10px;font-weight:900;font-size:14px}
-.kid-badge{display:none;margin-left:8px;background:rgba(138,154,59,.15);border:1.5px solid rgba(138,154,59,.4);color:#5F6B26;border-radius:999px;padding:3px 10px;font-size:11.5px}
-#ticket.kids .kid-badge{display:inline-block}
 .perf{border-top:2.5px dashed rgba(138,90,43,.35);position:relative}
 .perf::before,.perf::after{content:"";position:absolute;top:-13px;width:26px;height:26px;border-radius:50%;background:#FFDFAE;border:2px solid rgba(232,73,15,.25)}
 .perf::before{left:-40px}.perf::after{right:-40px}
@@ -387,8 +351,7 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
   #heroVisual{min-height:440px}
   .photo-frame{width:min(320px,88%);right:4%}
   #bigFive{width:124px;left:-8px;right:auto;top:-34px}
-  .photo-inner svg.balloon-cluster{width:19%;bottom:7.5%}
-  .field-row,.info-tiles{grid-template-columns:1fr}
+  .info-tiles{grid-template-columns:1fr}
   .stat .num{font-size:32px}
   .form-card{padding:24px 20px}
   .prog-item{padding-left:64px}.prog-icon{width:48px;height:48px;font-size:21px}.prog-line{left:22px}
@@ -457,7 +420,6 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
       <rect x="303" y="551" width="35" height="87" fill="url(#glassGrad)"/>
       <line x1="292" y1="590" x2="292" y2="612" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
       <line x1="308" y1="590" x2="308" y2="612" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-      <g id="archG"></g>
       <rect x="216" y="644" width="168" height="16" fill="#C9CDD4"/>
       <rect x="196" y="660" width="208" height="16" fill="#BFC4CC"/>
       <rect x="176" y="676" width="248" height="16" fill="#B4BAC3"/>
@@ -592,20 +554,6 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
       <div class="par" data-depth=".55" style="position:absolute;inset:0">
         <div class="photo-frame">
           <div class="photo-inner"><svg viewBox="0 0 600 760" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Здание центра «Горизонт»"><use href="#buildingSym"/></svg>
-            <svg class="balloon-cluster left" viewBox="0 0 120 200" aria-hidden="true">
-              <g class="balloon" data-i="0"><path d="M52 82 Q44 130 33 184" stroke="#C2410C" stroke-width="1.8" fill="none"/><ellipse cx="52" cy="52" rx="24" ry="29" fill="url(#bOrange)"/><ellipse cx="43" cy="40" rx="7" ry="10" fill="#fff" opacity=".55"/><path d="M47 79 L57 79 L52 86 Z" fill="#C2410C"/></g>
-              <g class="balloon" data-i="1"><path d="M88 70 Q70 130 36 183" stroke="#C2410C" stroke-width="1.8" fill="none"/><ellipse cx="88" cy="46" rx="20" ry="24" fill="url(#bGold)"/><ellipse cx="81" cy="36" rx="6" ry="8" fill="#fff" opacity=".6"/><path d="M85 68 L93 68 L89 75 Z" fill="#B97B00"/></g>
-              <g class="balloon" data-i="2"><path d="M32 110 Q30 152 32 186" stroke="#C2410C" stroke-width="1.6" fill="none"/><ellipse cx="32" cy="88" rx="16" ry="20" fill="url(#bRed)"/><ellipse cx="27" cy="79" rx="5" ry="7" fill="#fff" opacity=".5"/><path d="M29 106 L36 106 L32 113 Z" fill="#A32E06"/></g>
-              <circle cx="33" cy="189" r="2.4" fill="#C2410C"/>
-            </svg>
-            <svg class="balloon-cluster right" viewBox="0 0 120 200" aria-hidden="true">
-              <g transform="translate(120,0) scale(-1,1)">
-                <g class="balloon" data-i="0"><path d="M52 82 Q44 130 33 184" stroke="#C2410C" stroke-width="1.8" fill="none"/><ellipse cx="52" cy="52" rx="24" ry="29" fill="url(#bOrange)"/><ellipse cx="43" cy="40" rx="7" ry="10" fill="#fff" opacity=".55"/><path d="M47 79 L57 79 L52 86 Z" fill="#C2410C"/></g>
-                <g class="balloon" data-i="1"><path d="M88 70 Q70 130 36 183" stroke="#C2410C" stroke-width="1.8" fill="none"/><ellipse cx="88" cy="46" rx="20" ry="24" fill="url(#bGold)"/><ellipse cx="81" cy="36" rx="6" ry="8" fill="#fff" opacity=".6"/><path d="M85 68 L93 68 L89 75 Z" fill="#B97B00"/></g>
-                <g class="balloon" data-i="2"><path d="M32 110 Q30 152 32 186" stroke="#C2410C" stroke-width="1.6" fill="none"/><ellipse cx="32" cy="88" rx="16" ry="20" fill="url(#bRed)"/><ellipse cx="27" cy="79" rx="5" ry="7" fill="#fff" opacity=".5"/><path d="M29 106 L36 106 L32 113 Z" fill="#A32E06"/></g>
-                <circle cx="33" cy="189" r="2.4" fill="#C2410C"/>
-              </g>
-            </svg>
           </div>
           <span class="photo-caption">Наш дом — центр «Горизонт» 🧡</span>
         </div>
@@ -704,17 +652,16 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
     </div>
     <div class="prog-wrap">
       <div class="prog-line"><i id="progFill"></i></div>
-      <div class="prog-item reveal"><div class="prog-icon">🎈</div><div class="prog-card"><div class="prog-top"><span class="prog-time">15:00</span><span class="prog-dur">60 минут</span></div><h3>Сбор гостей и welcome-зона</h3><p>Фотозона с шарами, аквагрим для детей, тёплые напитки и объятия старых друзей.</p></div></div>
-      <div class="prog-item reveal" style="--d:.05s"><div class="prog-icon">🎬</div><div class="prog-card"><div class="prog-top"><span class="prog-time">16:00</span><span class="prog-dur">20 минут</span></div><h3>Торжественное открытие</h3><p>Приветствие директора и премьера фильма «5 лет за одну минуту».</p></div></div>
-      <div class="prog-item reveal" style="--d:.10s"><div class="prog-icon">🎤</div><div class="prog-card"><div class="prog-top"><span class="prog-time">16:20</span><span class="prog-dur">40 минут</span></div><h3>Концерт «Вместе»</h3><p>Выступления воспитанников, семейные номера и живая музыка.</p></div></div>
-      <div class="prog-item reveal" style="--d:.15s"><div class="prog-icon">🏆</div><div class="prog-card"><div class="prog-top"><span class="prog-time">17:00</span><span class="prog-dur">30 минут</span></div><h3>Чествование и благодарности</h3><p>Награждаем семьи-долгожителей, партнёров и команду центра.</p></div></div>
-      <div class="prog-item reveal" style="--d:.20s"><div class="prog-icon">🧡</div><div class="prog-card"><div class="prog-top"><span class="prog-time">17:30</span><span class="prog-dur">финал</span></div><h3>Завершение праздника</h3><p>Общие фотографии и тёплое «до встречи!».</p></div></div>
+      <div class="prog-item reveal"><div class="prog-icon">🎈</div><div class="prog-card"><div class="prog-top"><span class="prog-time">15:00</span></div><h3>Сбор гостей и welcome-зона</h3></div></div>
+      <div class="prog-item reveal" style="--d:.05s"><div class="prog-icon">🎬</div><div class="prog-card"><div class="prog-top"><span class="prog-time">16:00</span></div><h3>Торжественное открытие</h3></div></div>
+      <div class="prog-item reveal" style="--d:.10s"><div class="prog-icon">🎤</div><div class="prog-card"><div class="prog-top"><span class="prog-time">16:20</span></div><h3>Праздничный концерт</h3></div></div>
+      <div class="prog-item reveal" style="--d:.15s"><div class="prog-icon">🏆</div><div class="prog-card"><div class="prog-top"><span class="prog-time">17:00</span></div><h3>Чествование и благодарности</h3></div></div>
+      <div class="prog-item reveal" style="--d:.20s"><div class="prog-icon">🧡</div><div class="prog-card"><div class="prog-top"><span class="prog-time">17:30</span></div><h3>Завершение праздника</h3></div></div>
     </div>
     <div class="prog-actions reveal">
       <button class="btn btn-primary js-ics">Добавить в календарь 📅</button>
       <a class="btn btn-secondary" href="#rsvp" style="background:rgba(255,253,247,.95)">Занять место</a>
     </div>
-    <p class="prog-note">Сбор гостей — 15:00, начало — 16:00, окончание — 17:30. Программа может немного сдвинуться — но встреча будет тёплой точно 🧡</p>
   </div>
 </section>
 
@@ -725,16 +672,14 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
   <div class="container">
     <div class="sec-head reveal">
       <span class="eyebrow"><span class="dot"></span>Как нас найти</span>
-      <h2>Ждём вас <em>в нашем доме</em></h2>
-      <p>В день праздника у входа вырастет арка из шаров — не промахнётесь.</p>
+      <h2>Ждём вас <em>на нашем концерте</em></h2>
     </div>
     <div class="place-grid">
       <div class="reveal rv-left rv-scale">
         <div class="place-photo">
-          <svg viewBox="0 0 600 760" role="img" aria-label="Здание центра «Горизонт» с аркой из шаров"><use href="#buildingSym"/></svg>
+          <svg viewBox="0 0 600 760" role="img" aria-label="Здание центра «Горизонт»"><use href="#buildingSym"/></svg>
           <span class="entry-badge">ВХОД <span class="one">1</span></span>
         </div>
-        <p class="place-hand">↑ вот эта оранжевая красавица — и арка из шаров в день праздника</p>
       </div>
       <div class="reveal">
         <div class="addr-card">
@@ -747,9 +692,8 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
           </div>
         </div>
         <div class="info-tiles">
-          <div class="tile reveal" style="--d:.05s"><span class="t-ic">🎈</span><div><h4>Вход</h4><p>Ориентир — арка из оранжевых шаров у входа в центр.</p></div></div>
-          <div class="tile reveal" style="--d:.12s"><span class="t-ic">🅿️</span><div><h4>Парковка</h4><p>Рядом с центром — городская парковка.</p></div></div>
-          <div class="tile reveal" style="--d:.19s"><span class="t-ic">♿</span><div><h4>Доступная среда</h4><p>Пандус, лифт и волонтёры — поможем подняться и разместиться.</p></div></div>
+          <div class="tile reveal" style="--d:.05s"><span class="t-ic">🅿️</span><div><h4>Парковка</h4><p>Рядом с центром — городская парковка.</p></div></div>
+          <div class="tile reveal" style="--d:.12s"><span class="t-ic">♿</span><div><h4>Доступная среда</h4><p>Пандус, лифт и волонтёры — поможем подняться и разместиться.</p></div></div>
         </div>
       </div>
     </div>
@@ -764,7 +708,7 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
     <div class="sec-head reveal">
       <span class="eyebrow"><span class="dot"></span>Ответ до 24 ноября</span>
       <h2>Подтвердите <em>участие</em></h2>
-      <p>Заполните приглашение — и мы подготовим для вас место, бейдж и маленький сюрприз у входа.</p>
+      <p>Заполните приглашение, чтобы мы знали, что вы точно придёте.</p>
     </div>
     <div class="rsvp-grid">
       <div class="form-card reveal rv-left">
@@ -782,23 +726,9 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
             <input type="text" id="fContact" maxlength="60" placeholder="+7 ··· или mail@example.ru">
             <div class="field-error" id="errContact">Похоже, в контакте опечатка — проверьте, пожалуйста</div>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label>Сколько вас будет?</label>
-              <div class="stepper">
-                <button type="button" id="guestMinus" aria-label="Меньше гостей">−</button>
-                <span id="guestVal">1</span>
-                <button type="button" id="guestPlus" aria-label="Больше гостей">+</button>
-              </div>
-            </div>
-            <div class="field">
-              <label>Пожелание команде <span class="opt">— по желанию</span></label>
-              <input type="text" id="fWish" maxlength="90" placeholder="Люблю ваш центр за…">
-            </div>
-          </div>
-          <div class="switch-row">
-            <span class="sw-lbl">Придём с детьми 👧🧒</span>
-            <label class="switch"><input type="checkbox" id="fKids"><span class="track"></span></label>
+          <div class="field">
+            <label for="fWish">Пожелание команде <span class="opt">— по желанию</span></label>
+            <input type="text" id="fWish" maxlength="90" placeholder="Люблю ваш центр за…">
           </div>
           <button class="btn btn-primary" id="submitBtn" type="submit">Отправить приглашение 🎈</button>
           <p class="form-foot">Нажимая кнопку, вы просто говорите нам «буду!» — никаких рассылок.</p>
@@ -823,7 +753,6 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
             <div class="t-dear">Уважаемый(ая) <b id="ticketName">Дорогой гость</b>!</div>
             <div class="t-details"><span>📅 26 ноября 2026</span><span>🕓 15:00–17:30</span><span>🎈 5 лет</span></div>
             <div class="t-addr">1-й Красковский пр., 38Б, корпус 2, центр «Россолимо»</div>
-            <div class="t-guests">Гостей: <span id="ticketGuests">1</span><span class="kid-badge">👧 с детьми</span></div>
           </div>
           <div class="perf"></div>
           <div class="ticket-bottom">
@@ -936,13 +865,6 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a
     var h=document.createElementNS(NS,'line');h.setAttribute('x1',x);h.setAttribute('y1',y+WH/2);h.setAttribute('x2',x+80);h.setAttribute('y2',y+WH/2);h.setAttribute('stroke','#fff');h.setAttribute('stroke-width',4);wg.appendChild(h);
     var s=document.createElementNS(NS,'rect');s.setAttribute('x',x-10);s.setAttribute('y',y+WH+3);s.setAttribute('width',100);s.setAttribute('height',7);s.setAttribute('fill','#E8DCC0');wg.appendChild(s);
   })});
-  var ag=$('#archG');
-  for(var i=0;i<=14;i++){
-    var a=Math.PI-i*(Math.PI/14),x2=300+Math.cos(a)*102,y2=644-Math.sin(a)*118;
-    var c2=document.createElementNS(NS,'circle');c2.setAttribute('cx',x2.toFixed(1));c2.setAttribute('cy',y2.toFixed(1));c2.setAttribute('r',11);
-    c2.setAttribute('fill',i%2?'#FFF6E3':'#FF8A2A');ag.appendChild(c2);
-    var hl=document.createElementNS(NS,'circle');hl.setAttribute('cx',(x2-3).toFixed(1));hl.setAttribute('cy',(y2-4).toFixed(1));hl.setAttribute('r',3);hl.setAttribute('fill','#fff');hl.setAttribute('opacity','.6');ag.appendChild(hl);
-  }
 })();
 
 /* ---------- MARQUEE ---------- */
@@ -1040,13 +962,6 @@ var Confetti=(function(){
 function burstAt(el,n){var r=el.getBoundingClientRect();Confetti.burst(r.left+r.width/2,r.top+r.height/2,n)}
 
 /* ---------- BALLOONS & BIG 5 ---------- */
-$$('.balloon-cluster .balloon').forEach(function(b){
-  b.addEventListener('click',function(ev){
-    ev.stopPropagation();if(b.classList.contains('popped'))return;
-    Sound.pop();burstAt(b,26);b.classList.add('popped');
-    setTimeout(function(){b.classList.remove('popped');b.classList.add('reborn');setTimeout(function(){b.classList.remove('reborn')},600)},2400);
-  });
-});
 $('#bigFive').addEventListener('click',function(){Sound.chime();burstAt($('#bigFive'),140);var bf=$('#bigFive');bf.classList.remove('bounce');void bf.offsetWidth;bf.classList.add('bounce')});
 
 /* ---------- PARALLAX ---------- */
@@ -1099,15 +1014,6 @@ heroName.addEventListener('input',fitHeroName);
 window.addEventListener('resize',fitHeroName);
 function clearErr(){fName.classList.remove('error');$('#errName').classList.remove('show')}
 
-/* ---------- GUESTS ---------- */
-var guests=1,guestVal=$('#guestVal'),ticketGuests=$('#ticketGuests');
-function setGuests(v){guests=Math.min(6,Math.max(1,v));guestVal.textContent=guests;ticketGuests.textContent=guests;
-  $('#guestMinus').disabled=guests<=1;$('#guestPlus').disabled=guests>=6}
-$('#guestMinus').addEventListener('click',function(){setGuests(guests-1);Sound.click()});
-$('#guestPlus').addEventListener('click',function(){setGuests(guests+1);Sound.click()});
-setGuests(1);
-$('#fKids').addEventListener('change',function(){$('#ticket').classList.toggle('kids',this.checked)});
-
 /* ---------- RSVP ---------- */
 var rsvpForm=$('#rsvpForm'),successCard=$('#successCard'),ticket=$('#ticket'),pngBtn=$('#pngBtn'),ticketHint=$('#ticketHint'),saved=null;
 function genCode(){return 'ГР-2611-'+String(Math.floor(100+Math.random()*900))}
@@ -1116,8 +1022,7 @@ function renderSuccess(){
   rsvpForm.style.display='none';successCard.classList.add('show');
   ticket.classList.add('confirmed');pngBtn.disabled=false;
   ticketHint.textContent='Именное приглашение готово — скачайте и покажите на входе 🧡';
-  var g=saved.guests;
-  $('#sumText').innerHTML='Ждём <b>'+saved.name+'</b> и ещё '+(g-1>0?'<b>'+plural(g-1,['гостя','гостей','гостей']).replace('гостей','гостей')+'</b> ':'')+'… шутка! Всего мест: <b>'+g+' '+plural(g,['гость','гостя','гостей'])+'</b>.<br>26 ноября: сбор в 15:00, начало в 16:00, центр «Горизонт».'+(saved.kids?'<br>Для детей подготовим отдельную зону 👧':'');
+  $('#sumText').innerHTML='Ждём <b>'+saved.name+'</b>!<br>26 ноября: сбор в 15:00, начало в 16:00, центр «Горизонт».';
   $('#ticketCode').textContent=saved.code;
 }
 function renderForm(){rsvpForm.style.display='';successCard.classList.remove('show');ticket.classList.remove('confirmed');pngBtn.disabled=true;ticketHint.textContent='Подтвердите участие — и приглашение станет именным ✨';$('#ticketCode').textContent='ГР-2611-•••'}
@@ -1131,13 +1036,13 @@ rsvpForm.addEventListener('submit',function(e){
   var btn=$('#submitBtn');btn.classList.add('loading');
   setTimeout(function(){
     btn.classList.remove('loading');
-    saved={name:name,contact:contact,guests:guests,kids:$('#fKids').checked,wish:$('#fWish').value.trim(),code:genCode(),ts:Date.now()};
+    saved={name:name,contact:contact,wish:$('#fWish').value.trim(),code:genCode(),ts:Date.now()};
     saveRsvp();window.GZ_toast=toast;var queued=window.sendRsvp?window.sendRsvp(saved):false;setName(name);renderSuccess();if(!queued){var sn=document.getElementById("sumText");if(sn)sn.innerHTML+='<br><span class="s-note">Письмо с заявкой нужно отправить вручную — кнопка «Отправить письмом» под приглашением.</span>'}
     Sound.chime();burstAt(ticket,150);
     toast('Спасибо, '+name.split(' ')[0]+'! Ждём вас 26 ноября 🧡');
   },700);
 });
-$('#editBtn').addEventListener('click',function(){renderForm();if(saved){fName.value=saved.name;heroName.value=saved.name;setName(saved.name);$('#fContact').value=saved.contact||'';$('#fWish').value=saved.wish||'';$('#fKids').checked=!!saved.kids;ticket.classList.toggle('kids',!!saved.kids);setGuests(saved.guests)}});
+$('#editBtn').addEventListener('click',function(){renderForm();if(saved){fName.value=saved.name;heroName.value=saved.name;setName(saved.name);$('#fContact').value=saved.contact||'';$('#fWish').value=saved.wish||''}});
 $('#cancelBtn').addEventListener('click',function(){
   var backup=saved;saved=null;store.del('gz_rsvp');renderForm();
   toast('Ответ отменён. Будем скучать!','Вернуть',function(){saved=backup;saveRsvp();renderSuccess()});
@@ -1145,7 +1050,7 @@ $('#cancelBtn').addEventListener('click',function(){
 /* restore */
 (function(){
   var n=store.get('gz_name','');if(n){heroName.value=n;fName.value=n;setName(n)}
-  var r=store.get('gz_rsvp','');if(r){try{saved=JSON.parse(r);setName(saved.name);$('#fKids').checked=!!saved.kids;ticket.classList.toggle('kids',!!saved.kids);setGuests(saved.guests||1);renderSuccess()}catch(e){}}
+  var r=store.get('gz_rsvp','');if(r){try{saved=JSON.parse(r);setName(saved.name);renderSuccess()}catch(e){}}
 })();
 fitHeroName();
 if(document.fonts&&document.fonts.ready){document.fonts.ready.then(fitHeroName)}
@@ -1316,8 +1221,6 @@ function rsvpPayload(d){
   var body = {
     'Имя': d.name || '—',
     'Контакт': d.contact || '—',
-    'Гостей': d.guests || 1,
-    'Дети': d.kids ? 'да' : 'нет',
     'Пожелание': d.wish || '—',
     'Код приглашения': d.code || '—',
     'Страница': location.href
@@ -1401,7 +1304,6 @@ function rsvpText(d){
     '',
     'Имя: ' + (d.name || '—'),
     'Контакт: ' + (d.contact || '—'),
-    'Гостей: ' + (d.guests || 1) + (d.kids ? ' (с детьми)' : ''),
     'Пожелание: ' + (d.wish || '—'),
     'Код приглашения: ' + (d.code || '—')
   ].join('\n');
@@ -1472,8 +1374,6 @@ function tgText(d){
   return '🎈 Новая заявка'
     + '\nИмя: ' + (d.name || '—')
     + '\nКонтакт: ' + (d.contact || '—')
-    + '\nГостей: ' + (d.guests || 1)
-    + '\nДети: ' + (d.kids ? 'да' : 'нет')
     + '\nПожелание: ' + (d.wish || '—');
 }
 
