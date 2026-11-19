@@ -769,6 +769,9 @@ footer h4{color:var(--gold);font-size:13px;font-weight:900;letter-spacing:.14em;
     <div class="rsvp-grid">
       <div class="form-card reveal rv-left">
         <form id="rsvpForm" novalidate>
+          <!-- ловушка для ботов: живой гость это поле не видит и не заполняет -->
+          <input type="text" id="fHp" name="company_website" autocomplete="off" tabindex="-1"
+                 aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
           <div class="field">
             <label for="fName">Ваше имя и фамилия</label>
             <input type="text" id="fName" maxlength="40" placeholder="Например: Анна Смирнова" autocomplete="name">
@@ -1239,14 +1242,23 @@ window.GZ_toast=toast;
 /* ================== 2) ОТПРАВКА ЗАЯВКИ НА ПОЧТУ ====================
    Заявки приходят на horizon-mos@yandex.ru.
 
-   Автоотправку принимает Web3Forms — бесплатный приём форм для статических
-   страниц (250 заявок в месяц). Ключ доступа публичен по замыслу сервиса:
-   он позволяет только отправлять письма на один конкретный ящик.
+   Приём заявок — сервис FormToMail (https://formtomail.ru): POST /send,
+   ключ уходит заголовком Authorization. Ключ публичен по замыслу сервиса:
+   он позволяет только отправлять письма на ящик, привязанный к ключу в
+   личном кабинете FormToMail.
 
-   Как получить ключ (2 минуты):
-     1. Открыть https://web3forms.com/ и нажать «Create Access Key»
-     2. Ввести horizon-mos@yandex.ru — ключ придёт письмом на этот ящик
+   Как настроить (один раз):
+     1. Открыть https://formtomail.ru/ и создать ключ API
+     2. Указать в кабинете ящик horizon-mos@yandex.ru (и сайт korgik.github.io,
+        если ключ платный и домен ограничен)
      3. Вставить ключ в RSVP_KEY ниже и опубликовать страницу
+
+   Заявка уходит телом { title, body, honeypot } — ключи body становятся
+   подписями полей в письме. Скрытое поле-ловушка (company_website) отсекает
+   ботов: сервис отвечает «успешно», но письмо не отправляет.
+
+   Лимит сервиса — 3 запроса в минуту с одного адреса, поэтому повторы
+   редкие, а лишние заявки ждут в очереди до следующего открытия страницы.
 
    Пока ключ пуст, работает запасной путь: заявка открывается письмом в
    почтовой программе гостя (mailto) — без настройки, но с кнопкой «Отправить».
@@ -1258,8 +1270,8 @@ window.GZ_toast=toast;
    Соединение иногда обрывается, поэтому заявка сначала кладётся в очередь
    в localStorage и удаляется оттуда только после успешного ответа сервиса:
    потерять её нельзя, а неотправленное досылается при следующем открытии. */
-var RSVP_KEY = '9df89397-f418-4804-ab3c-cd6871da329c';                   // ← ключ Web3Forms (см. выше)
-var RSVP_ENDPOINT = 'https://api.web3forms.com/submit';
+var RSVP_KEY = 'HuCvptpjiiuxLAlp';          // ← ключ FormToMail (см. выше)
+var RSVP_ENDPOINT = 'https://api.formtomail.ru/send';
 var RSVP_EMAIL = 'horizon-mos@yandex.ru';
 var RSVP_QUEUE = 'gz_rsvp_queue';
 var RSVP_TRIES = [0, 1500];          // паузы перед попытками, мс
@@ -1275,8 +1287,8 @@ var rsvpLast = null;                 // последняя заявка — дл
                 либо @имя канала, куда бот добавлен администратором
    Канал дублирующий: основным остаётся почта, потому что api.telegram.org
    из российских сетей часто недоступен. */
-var TG_TOKEN = '9174878893:AAGATpBixrfY6S1oqt8SscDpAwiNz4YU4kA';
-var TG_CHAT  = '-1004363581120';
+var TG_TOKEN = '';
+var TG_CHAT  = '';
 var TG_TRIES = [0, 1500];            // паузы перед попытками, мс
 
 /* ---------- очередь ---------- */
@@ -1300,22 +1312,23 @@ function rsvpQueueDrop(code){
 
 /* ---------- письмо ---------- */
 function rsvpPayload(d){
-  var o = {
-    access_key: RSVP_KEY,
-    subject: 'Заявка на юбилей — ' + (d.name || 'гость'),
-    from_name: 'Приглашение «Горизонт»',
-    name: d.name || '',
-    contact: d.contact || '—',
-    guests: d.guests || 1,
-    kids: d.kids ? 'да, с детьми' : 'нет',
-    wish: d.wish || '—',
-    code: d.code || '',
-    page: location.href,
-    botcheck: false
+  // ключи body — подписи полей в письме; значения — простые строки и числа
+  var body = {
+    'Имя': d.name || '—',
+    'Контакт': d.contact || '—',
+    'Гостей': d.guests || 1,
+    'Дети': d.kids ? 'да' : 'нет',
+    'Пожелание': d.wish || '—',
+    'Код приглашения': d.code || '—',
+    'Страница': location.href
   };
-  // если гость оставил e-mail — ответ на письмо уйдёт прямо ему
-  if (/^\S+@\S+\.\S{2,}$/.test(d.contact || '')) o.replyto = d.contact;
-  return JSON.stringify(o);
+  // поле-ловушка: пустое у живого гостя, заполняют только боты
+  var hp = document.getElementById('fHp');
+  return JSON.stringify({
+    title: 'Заявка на юбилей — ' + (d.name || 'гость'),
+    body: body,
+    honeypot: hp ? hp.value : ''
+  });
 }
 
 /* Одна попытка. cb(err, status, body): err — только сетевой сбой. */
@@ -1324,7 +1337,11 @@ function rsvpPost(payload, cb){
   var timer = setTimeout(function(){ if (ctrl) ctrl.abort() }, RSVP_TIMEOUT);
   var opts = {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer ' + RSVP_KEY       // схема FormToMail: Bearer <ключ>
+    },
     body: payload
   };
   if (ctrl) opts.signal = ctrl.signal;
@@ -1342,7 +1359,9 @@ function rsvpPost(payload, cb){
   });
 }
 
-/* Отправка с повторами: пока не ответят или не кончатся попытки. */
+/* Отправка с повторами: пока не ответят или не кончатся попытки.
+   onDone(ok, reason, note): reason — для консоли и очереди,
+   note — текст для гостя в запасном блоке (только при отказе сервиса). */
 function rsvpSend(item, onDone){
   if (!RSVP_KEY) return onDone(false, 'ключ не задан');
   var payload = rsvpPayload(item.data);
@@ -1352,12 +1371,19 @@ function rsvpSend(item, onDone){
     var delay = RSVP_TRIES[i++];
     setTimeout(function(){
       rsvpPost(payload, function(err, status, body){
-        var ok = !err && status < 400 && body && body.success === true;
-        if (ok) return onDone(true);
-        // сервис ответил отказом (неверный ключ, лимит) — повтор не поможет
-        if (!err && body && body.success === false) return onDone(false, body.message || 'отказ сервиса');
-        if (!err && status >= 400 && status < 500 && status !== 429) {
-          return onDone(false, (body && body.message) || ('HTTP ' + status));
+        var msg = (body && typeof body.message === 'string') ? body.message : '';
+        // 2xx — сервис принял заявку (подтверждение приёма, не доставки)
+        if (!err && status >= 200 && status < 300) return onDone(true);
+        // 400 — поправимая ошибка формы: документация просит показать текст гостю
+        if (!err && status === 400) {
+          return onDone(false, 'сервис отклонил заявку',
+            'Сервис не принял заявку: ' + (msg || 'проверьте поля формы'));
+        }
+        // 429 — лимит запросов: повторять сразу бессмысленно, заявка подождёт
+        if (!err && status === 429) return onDone(false, 'слишком часто');
+        // 401/403/404 (ключ, домен) и 5xx — тоже без мгновенного повтора
+        if (!err && status >= 400) {
+          return onDone(false, 'HTTP ' + status + (msg ? ' — ' + msg : ''));
         }
         if (err) console.warn('Заявка не ушла на почту: ' + (err.message || err.name));
         step();
@@ -1386,17 +1412,19 @@ function rsvpMailtoHref(d){
     + '&body=' + encodeURIComponent(rsvpText(d));
 }
 
-function rsvpShowFallback(d, scrollTo, noKey){
+function rsvpShowFallback(d, scrollTo, note){
   var box = document.getElementById('rsvpFallback');
   if (!box) return;
   var mail = document.getElementById('fbMail');
   if (mail) mail.href = rsvpMailtoHref(d);
-  var note = document.getElementById('fbNote');
-  if (note) note.textContent = noKey
-    ? 'Осталось отправить письмо — текст уже готов.'
-    : 'Автоотправка не прошла — отправьте письмо, текст уже готов.';
+  var noteEl = document.getElementById('fbNote');
+  if (noteEl) noteEl.textContent = (typeof note === 'string' && note)
+    ? note
+    : (note === true
+        ? 'Осталось отправить письмо — текст уже готов.'
+        : 'Автоотправка не прошла — отправьте письмо, текст уже готов.');
   var retry = document.getElementById('fbRetry');
-  if (retry) retry.style.display = noKey ? 'none' : '';
+  if (retry) retry.style.display = note === true ? 'none' : '';
   box.classList.add('show');
   if (scrollTo) {
     try { box.scrollIntoView({block:'center', behavior:'smooth'}) } catch(e) { box.scrollIntoView() }
@@ -1429,13 +1457,13 @@ function rsvpCopyText(txt){
   if (retry) retry.addEventListener('click', function(){ window.flushRsvpQueue() });
 })();
 
-function rsvpNotifyFail(d){
+function rsvpNotifyFail(d, note){
   if (window.GZ_toast) {
     window.GZ_toast('Заявка сохранена, но письмо не ушло', 'Показать', function(){
-      rsvpShowFallback(d, true);
+      rsvpShowFallback(d, true, note);
     });
   }
-  rsvpShowFallback(d);
+  rsvpShowFallback(d, false, note);
 }
 
 /* ---------- Telegram ---------- */
@@ -1514,10 +1542,10 @@ window.sendRsvp = function sendRsvp(d){
   if (byMail) {
     var item = { code: d.code || ('tmp-' + Date.now()), ts: Date.now(), data: d };
     rsvpQueueAdd(item);               // сначала фиксируем, потом отправляем
-    rsvpSend(item, function(ok, why){
+    rsvpSend(item, function(ok, why, note){
       if (ok) { rsvpQueueDrop(item.code); rsvpHideFallback(); return }
       console.warn('Заявка не отправлена на почту:', why);
-      rsvpNotifyFail(d);
+      rsvpNotifyFail(d, note);
     });
   }
   if (byTg) {
@@ -1539,8 +1567,10 @@ window.flushRsvpQueue = function flushRsvpQueue(){
   var item = list[0];
   rsvpSend(item, function(ok, why){
     if (!ok) {
+      // сеть пропала или сработал лимит сервиса — заявка ждёт следующего открытия
+      if (why === 'сеть недоступна' || why === 'слишком часто') return;
       // неверный ключ или отказ сервиса — повторять при каждом открытии бессмысленно
-      if (why && why !== 'сеть недоступна') { rsvpQueueDrop(item.code); flushRsvpQueue() }
+      rsvpQueueDrop(item.code); flushRsvpQueue();
       return;
     }
     rsvpQueueDrop(item.code);
